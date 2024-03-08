@@ -1,0 +1,271 @@
+---
+- name: url checking uc
+  hosts: localhost
+  become: true
+  ignore_errors: true
+  tasks:
+    
+    - name: creating csv file
+      delegate_to: localhost
+      become: true
+      shell: |
+        echo "https://mfgapps.utclconnect.com/utkarsh/" > /tmp/url_links.csv
+        echo "https://mfgapps.utclconnect.com/SDD/"  >> /tmp/url_links.csv
+        echo "https://iapprove.eye2serve.com/ProcessPortal/login.jsp" >> /tmp/url_links.csv
+        echo "https://iapprove.eye2serve.com/ProcessPortal/login.jsp" >> /tmp/url_links.csv
+        echo "https://ultratechcustomerconnect.com/#/login" >> /tmp/url_links.csv
+        echo "https://www.eye2serve.com/mission-happiness/" >> /tmp/url_links.csv
+        echo "https://speed.eye2serve.com/TP2.0/%23/login___.YXBzMTphZGl0eWFiaXJsYW1hbmFnZW1lbnQ6YzpvOmM0ZTBiNjE0N2M0MmM5Zjc5N2NkMGU1MWExMjE3N2MxOjY6YTAxODo1OTZhYzY3YjA4N2QyOGIwNWJiZjEyYjFkOGNiMzRmNzg5NTk2MmFkMDhhMTU2MDNiMGQ4ODY4NGI0MDNhZmQ4OnQ6Rg" >> /tmp/url_links.csv
+        echo "https://www.eye2serve.com/TP2.0/%23/login___.YXBzMTphZGl0eWFiaXJsYW1hbmFnZW1lbnQ6YzpvOmM0ZTBiNjE0N2M0MmM5Zjc5N2NkMGU1MWExMjE3N2MxOjY6NzMyNToyN2Y3ZmQ4ZmJlMDEzYzkwMThiMTFkMzZiYWVlMzc4MzQ0NmI1MzlhZTIzMDQxODU4NWFlYjY1MTQ1MGY1ZjJjOnQ6Rg" >> /tmp/url_links.csv
+        echo "https://www.ultratechlct.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechaccess.com" >> /tmp/url_links.csv
+
+        echo "https://www.ultratechapps.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechclp.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechaccess.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechapps.com" >> /tmp/url_links.csv
+
+        echo "https://www.ultratechapps.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechapps.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechaccess.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechaccess.com" >> /tmp/url_links.csv
+
+        echo "https://www.ultratechaccess.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechaccess.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechapps.com" >> /tmp/url_links.csv
+        echo "https://www.ultratechapps.com" >> /tmp/url_links.csv
+        
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+
+        echo "https://datacap.utclconnect.com" >> /tmp/url_links.csv
+        echo "https://datacap.utclconnect.com" >> /tmp/url_links.csv
+        echo "https://uksc.utclconnect.com" >> /tmp/url_links.csv
+  
+    - name: creating csv file
+      delegate_to: localhost
+      become: true
+      shell: | 
+          cat /tmp/url_links.csv
+      register: csv_file_data
+
+    - set_fact:
+        url_list: "{{ csv_file_data.stdout_lines }}"
+
+    - set_fact:
+        hostname: '{{ hostname | default([]) + [item | urlsplit("hostname")] }}'
+      loop: "{{ csv_file_data.stdout_lines }}"
+
+    # - debug: var=hostname
+
+    - set_fact:
+        port_num: "{{ port_num | default([]) + [item | urlsplit('port') | default(443) if (item | urlsplit('port')) is not none else 443] }}"
+      loop: "{{ csv_file_data.stdout_lines }}"
+      
+    # - debug: var=port_num
+
+    - name: Calculate expiry date two months from now
+      set_fact:
+        current_date: "{{ ansible_date_time.date | regex_replace('-', '') }}"
+
+    - name: Calculate expiry date two months from now
+      shell: date -d "{{ current_date }} +2 months" +%Y%m%d
+      register: two_months_date_result
+
+    - name: check the exipiry date of url of Secondary Operation Automation
+      get_certificate:
+        host: "{{ item.0 }}"
+        port: "{{ item.1 | int }}"          
+      delegate_to: localhost
+      run_once: true
+      register: secon_operation_automation_1
+      with_together:
+        - "{{ hostname }}"
+        - "{{ port_num }}"
+    
+    - name: set fact for the CN of the url of Secondary Operation Automation 
+      set_fact:
+        all_cn_names: "{{ all_cn_names | default([]) + [item.subject.CN] | list }}"
+      with_items: "{{ secon_operation_automation_1.results }}"
+    
+    # - debug: var=all_cn_names
+    
+    - name: task for formatted expirydate
+      shell: |
+        date -d "$(echo '{{ item.not_after}}' | cut -c 1-8)" "+%A, %B %d, %Y"
+      register: formatted_date_1
+      with_items: "{{ secon_operation_automation_1.results }}"
+
+    - name: set fact task for raw expirydate from not_after parameter
+      set_fact:
+        raw_expirydate: "{{ raw_expirydate | default([]) + [item.not_after] | list }}"
+      with_items: "{{ secon_operation_automation_1.results }}"
+
+#     - debug: var=formatted_date_1
+#     - debug: 
+#         msg: "{{ item.stdout_lines }}"
+#       with_items: "{{ formatted_date_1.results }}"
+      
+    - name: set fact for the formatted dates
+      set_fact:
+        formatted_date_set_fact: "{{ formatted_date_set_fact | default([]) + item.stdout_lines }}"
+      with_items: "{{ formatted_date_1.results }}"
+      
+    - debug: var=formatted_date_set_fact
+    
+    - name: set fact for the expiry date without formatted
+      set_fact:
+        without_formatted_date_set_fact: "{{ item.not_after | regex_replace('(\\d{4})(\\d{2})(\\d{2}).*', '\\1\\2\\3') }}"
+      register: without_formatted_date
+      with_items: "{{ secon_operation_automation_1.results }}"
+      
+    # - debug: var=without_formatted_date
+    
+    # - debug:
+    #     msg: "{{ item.ansible_facts.without_formatted_date_set_fact }}"
+    #   with_items: "{{ without_formatted_date.results }}"
+
+    - name: set fact for the without formatted dates
+      set_fact:
+        without_formatted_set_fact: "{{ without_formatted_set_fact | default([]) + [item.ansible_facts.without_formatted_date_set_fact] |list }}"
+      with_items: "{{ without_formatted_date.results }}"
+      
+    # - debug: var=without_formatted_set_fact
+    
+    - name: setfacts for all common names and expiry days
+      set_fact:
+        expiry_date_difference_days : "{{ (item | to_datetime('%Y%m%d')) - (current_date | to_datetime('%Y%m%d')) }}"
+      with_items: "{{ without_formatted_set_fact }}"
+      register: difference_days_reg
+   
+    # - debug: var=expiry_date_difference_days
+    # - debug: var=difference_days_reg
+    
+    - name: setfacts for all expiry formated days
+      set_fact:
+        formatted_expiry_date_difference_days :  "{{ formatted_expiry_date_difference_days  | default([]) + [item.ansible_facts.expiry_date_difference_days.split(' ')[0]] }}"
+      with_items: "{{ difference_days_reg.results }}"
+    
+    # - debug: var=formatted_expiry_date_difference_days
+
+    - name: set Headers
+      shell: echo "Application_URLs,Expiry_Date,Common_name,Expire_in_days,Raw_expiry_date" > /var/consolidated_url_expiry.csv
+      run_once: true
+      become: true
+      delegate_to: localhost
+
+
+    - name: Append the data of DBS
+      throttle: 1
+      become: true
+      shell: echo "{{ item.0  }}, {{ item.1 }}, {{ item.2 }}, {{ item.3 }}, {{ item.4 }}" >> /var/consolidated_url_expiry.csv
+      delegate_to: localhost
+      with_together:
+      - "{{ url_list }}"
+      - "{{ without_formatted_set_fact }}"
+      - "{{ all_cn_names }}"
+      - "{{ formatted_expiry_date_difference_days }}"
+      - "{{ raw_expirydate }}"
+
+    - name: Sending an email using Ansible
+      mail:
+        # host: "smtp.sendgrid.net"
+        # port: "465"
+        # username: "apikey"
+        # password: "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"
+        # from: "Ansible Bot<eca.ansible@ibm.com>"
+        # to: "Bathula.Chandra.Sekhar@ibm.com"
+        # cc: "Bathula.Chandra.Sekhar@ibm.com"
+
+        host: "{{ email_host }}"
+        port: "{{ email_port_num }}"
+        from: "Ultra Tech Bot<ansiblebot@adityabirla.com>"
+        to: "{{ to_mail }}"
+        cc: "{{ cc_mail }}"
+        subject: "Consolidated report of Url Certificate Expiry Alert Mail"
+        body: |
+          <h2>Greetings,</h2>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              table, th, td {
+                border: 1px solid black;
+                border-collapse: collapse;
+              }
+              th {
+                background-color: #000;
+                color: white;
+                border: 1px solid white;
+              }
+            </style>
+          </head>
+          <body>
+            <h2>Please find the Consolidated Report of URL certificate expiry</h2>
+            <table style="width:100%">
+              <tr>
+                <th>Application URLs</th>
+                <th>Expiry_Date</th>
+                <th>Common_name</th>
+                <th>Expire_in_days</th>
+              </tr>
+              {% for host in ansible_play_hosts %}
+              <tr>
+                <td>
+                  <table style="width:100%">
+                    {% for item in hostvars[host]['url_list'] %}
+                    <tr>
+                      <td>{{item}}</td>
+                    </tr>
+                    {% endfor %}
+                  </table>
+                </td>
+                <td>
+                  <table style="width:100%">
+                    {% for item in hostvars[host]['formatted_date_set_fact'] %}
+                    <tr>
+                      <td>{{item}}</td>
+                    </tr>
+                    {% endfor %}
+                  </table>
+                </td>
+                <td>
+                  <table style="width:100%">
+                    {% for item in hostvars[host]['all_cn_names'] %}
+                    <tr>
+                      <td>{{item}}</td>
+                    </tr>
+                    {% endfor %}
+                  </table>
+                </td>
+                <td>
+                  <table style="width:100%">
+                    {% for item in hostvars[host]['formatted_expiry_date_difference_days'] %}
+                    <tr>
+                      {% if item | int >= 60 %}
+                      <td bgcolor="#7CFC00">{{item}}</td>
+                      {% else %}
+                      <td bgcolor="#ff2c18">{{item}}</td>
+                      {% endif %}
+                    </tr>
+                    {% endfor %}
+                  </table>
+                </td>
+              </tr>
+              {% endfor %}
+            </table>
+            <br><br>
+            <p>Note: This is an auto-generated email. Do not reply.</p>
+          </body>
+          </html>
+        subtype: html
+        attach:
+          - /var/consolidated_url_expiry.csv
+      delegate_to: localhost
+      run_once: true
